@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一起飞</title>
+    <!-- 页签图标 -->
+     <link rel="icon" href="./favicon(1).png" type="image/png">
+    <!-- TensorFlow.js + COCO-SSD(目标检测) + MobileNet(图像分类): 客户端双模型AI识别 -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #222;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
+            color: white;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(26,58,92,0.25);
+        }
+        header h1 {
+            font-size: 22px;
+            font-weight: 600;
+        }
+        header p {
+            opacity: 0.85;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .header-btn:hover {
+            background: rgba(255,255,255,0.28);
+        }
+        .notice {
+            background: #fff7e6;
+            border-left: 4px solid #faad14;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+        .card {
+            background: white;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+            transform: translateY(-2px);
+        }
+        .card h2 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eee;
+        }
+        .form-item {
+            margin-bottom: 14px;
+        }
+        label {
+            display: inline-block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #bbb;
+            background: white;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #1a3a5c;
+            box-shadow: 0 0 0 3px rgba(26,58,92,0.12);
+        }
+        button {
+            background: #1a3a5c;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:hover {
+            background: #0f2a44;
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+        .result-area {
+            margin-top: 14px;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e5e5e5;
+            min-height: 40px;
+            border-radius: 6px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .flex-row > div {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        /* 聊天框 */
+        .chat-box {
+            border: 1px solid #d0d0d0;
+            background: #fafafa;
+            padding: 14px;
+            height: 210px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+        .chat-msg-user {
+            text-align: right;
+            margin: 6px 0;
+        }
+        .chat-msg-user span {
+            display: inline-block;
+            background: #1a3a5c;
+            color: white;
+            padding: 6px 12px;
+            max-width: 85%;
+            border-radius: 10px;
+        }
+        .chat-msg-bot {
+            text-align: left;
+            margin: 6px 0;
+        }
+        .chat-msg-bot span {
+            display: inline-block;
+            background: #e9ecef;
+            color: #222;
+            padding: 6px 12px;
+            max-width: 85%;
+            border-radius: 10px;
+        }
+        .chat-row {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-row input {
+            flex: 1;
+        }
+
+        /* 识图预览 */
+        .preview-img {
+            max-width: 150px;
+            max-height: 120px;
+            border: 1px solid #ccc;
+            margin: 6px 0;
+        }
+
+        /* 携带状态标签 */
+        .carry-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .carry-allowed { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+        .carry-forbidden { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
+        .carry-unknown { background: #fffbe6; color: #d48806; border: 1px solid #ffe58f; }
+        /* AI模型状态指示器 */
+        .model-status {
+            display: inline-block;
+            font-size: 13px;
+            padding: 3px 10px;
+            border-radius: 3px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .model-status.loading {
+            background: #fff7e6;
+            color: #b25a00;
+        }
+        .model-status.ready {
+            background: #e6f7e6;
+            color: #1a7a3a;
+        }
+        .model-status.error {
+            background: #fce4e4;
+            color: #b22222;
+        }
+
+        /* 识别结果中的置信度条 */
+        .pred-bar {
+            display: inline-block;
+            height: 6px;
+            background: #1a3a5c;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        /* 携带状态标签 */
+        .carry-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 3px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .carry-badge.safe { background: #e6f7e6; color: #1a7a3a; }
+        .carry-badge.caution { background: #fff7e6; color: #b25a00; }
+        .carry-badge.danger { background: #fce4e4; color: #b22222; }
+
+        /* 加载动画 */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ddd;
+            border-top-color: #1a3a5c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 拖拽上传区域 */
+        .upload-area {
+            border: 2px dashed #bbb;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #1a3a5c;
+            background: #f0f4f8;
+        }
+        .upload-area p {
+            color: #888;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        /* 图片检测画布容器 */
+        .image-canvas-wrap {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            margin: 10px 0;
+        }
+        .image-canvas-wrap canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .image-canvas-wrap img {
+            display: block;
+            max-width: 100%;
+            max-height: 320px;
+        }
+
+        /* 检测结果卡片 */
+        .detect-card {
+            border: 1px solid #ddd;
+            border-left: 4px solid #1a3a5c;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+        .detect-card.safe { border-left-color: #1a7a3a; }
+        .detect-card.caution { border-left-color: #b25a00; }
+        .detect-card.danger { border-left-color: #b22222; }
+        .detect-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+        .detect-card-name {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .detect-card-confidence {
+            font-size: 13px;
+            color: #888;
+        }
+        .detect-card-advice {
+            font-size: 14px;
+            color: #444;
+            line-height: 1.5;
+        }
+
+        /* 置信度阈值滑块 */
+        .threshold-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #555;
+        }
+        .threshold-row input[type="range"] {
+            flex: 1;
+            max-width: 200px;
+        }
+        .threshold-value {
+            font-weight: 600;
+            color: #1a3a5c;
+            min-width: 40px;
+        }
+
+        /* 识别历史 */
+        .history-list {
+            margin-top: 14px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .history-item {
+            font-size: 13px;
+            color: #666;
+            padding: 4px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-item:hover {
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+        .history-empty {
+            font-size: 13px;
+            color: #aaa;
+            text-align: center;
+            padding: 8px;
+        }
+
+        /* ========== 登录/注册弹窗 ========== */
+        .modal-mask {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-mask.show { display: flex; }
+        .modal-box {
+            background: white;
+            width: 380px;
+            max-width: 92%;
+            padding: 28px 30px;
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .modal-box h3 {
+            font-size: 20px;
+            color: #1a3a5c;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .modal-box .modal-sub {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .modal-tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+        }
+        .modal-tabs span {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            cursor: pointer;
+            color: #888;
+            font-size: 15px;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .modal-tabs span.active {
+            color: #1a3a5c;
+            border-bottom-color: #1a3a5c;
+            font-weight: 600;
+        }
+        .modal-form { display: none; }
+        .modal-form.active { display: block; }
+        .modal-form .form-item { margin-bottom: 14px; }
+        .modal-form label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #444;
+        }
+        .modal-form input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .modal-form input:focus {
+            outline: none;
+            border-color: #1a3a5c;
+        }
+        .modal-btn {
+            width: 100%;
+            background: #1a3a5c;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+        .modal-btn:hover { background: #0f2a44; }
+        .modal-tip {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 12px;
+        }
+        .modal-tip a {
+            color: #1a3a5c;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .modal-msg {
+            font-size: 13px;
+            padding: 8px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .modal-msg.error { background: #fdecea; color: #b22222; }
+        .modal-msg.success { background: #e8f5e9; color: #1a7a3a; }
+        .modal-close {
+            float: right;
+            cursor: pointer;
+            color: #999;
+            font-size: 20px;
+            line-height: 1;
+            margin-top: -8px;
+        }
+        .modal-close:hover { color: #333; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>🧳 一起飞 - 旅客手册</h1>
+        <p>随身行李重量参考 · 物品携带问答 · AI 识图（原型）</p>
+    </div>
+    <button class="header-btn" onclick="openAuthModal()">🔐 后台管理</button>
+</header>
+
+<!-- ========== 登录/注册弹窗 ========== -->
+<div class="modal-mask" id="authModal" onclick="if(event.target===this)closeAuthModal()">
+    <div class="modal-box">
+        <span class="modal-close" onclick="closeAuthModal()">×</span>
+        <h3>🔐 后台管理入口</h3>
+        <p class="modal-sub">请登录或注册后进入管理后台</p>
+        <div class="modal-tabs">
+            <span id="tabLogin" class="active" onclick="switchAuthTab('login')">登录</span>
+            <span id="tabRegister" onclick="switchAuthTab('register')">注册</span>
+        </div>
+        <div id="authMsg"></div>
+
+        <!-- 登录表单 -->
+        <form class="modal-form active" id="loginForm" onsubmit="return doLogin(event)">
+            <div class="form-item">
+                <label>用户名</label>
+                <input id="loginUser" type="text" placeholder="请输入用户名" autocomplete="username">
+            </div>
+            <div class="form-item">
+                <label>密码</label>
+                <input id="loginPass" type="password" placeholder="请输入密码" autocomplete="current-password">
+            </div>
+            <button type="submit" class="modal-btn">登 录</button>
+            <p class="modal-tip">还没有账号？<a onclick="switchAuthTab('register')">立即注册</a></p>
+        </form>
+
+        <!-- 注册表单 -->
+        <form class="modal-form" id="registerForm" onsubmit="return doRegister(event)">
+            <div class="form-item">
+                <label>用户名</label>
+                <input id="regUser" type="text" placeholder="3-16位字母/数字" autocomplete="username">
+            </div>
+            <div class="form-item">
+                <label>密码</label>
+                <input id="regPass" type="password" placeholder="至少6位" autocomplete="new-password">
+            </div>
+            <div class="form-item">
+                <label>确认密码</label>
+                <input id="regPass2" type="password" placeholder="再次输入密码" autocomplete="new-password">
+            </div>
+            <button type="submit" class="modal-btn">注 册</button>
+            <p class="modal-tip">已有账号？<a onclick="switchAuthTab('login')">去登录</a></p>
+        </form>
+    </div>
+</div>
+
+<div class="notice">
+    ⚠️ 本系统为自查辅助工具，所有结果仅供参考，最终以机场安检现场判定为准。
+</div>
+
+<!-- ========= 功能1：行李重量判断 ========= -->
+<div class="card">
+    <h2>📦 行李重量判断</h2>
+    <p style="font-size:14px;color:#444;margin-bottom:14px;">选择航司与舱位，查看随身行李重量上限，自行对照是否需要托运。</p >
+    <div class="flex-row">
+        <div class="form-item">
+            <label>航空公司</label>
+            <select id="airlineSelect">
+                <option value="中国国际航空">中国国际航空</option>
+                <option value="东方航空">东方航空</option>
+                <option value="南方航空">南方航空</option>
+                <option value="海南航空" selected>海南航空</option>
+                <option value="厦门航空">厦门航空</option>
+                <option value="四川航空">四川航空</option>
+                <option value="深圳航空">深圳航空</option>
+            </select>
+        </div>
+        <div class="form-item">
+            <label>舱位</label>
+            <select id="cabinSelect">
+                <option value="经济舱">经济舱</option>
+                <option value="商务舱">商务舱</option>
+                <option value="头等舱">头等舱</option>
+            </select>
+        </div>
+        <div class="form-item" style="display:flex;align-items:flex-end;">
+            <button onclick="queryWeight()">查询重量标准</button>
+        </div>
+    </div>
+    <div class="result-area" id="weightResult">
+        <span style="color:#888;">点击查询显示航司随身行李重量上限</span>
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:#666;border-top:1px solid #eee;padding-top:10px;">
+        <span>📐 常规随身行李尺寸参考：20cm × 40cm × 55cm（各航司略有差异）</span>
+    </div>
+</div>
+
+<!-- ========= 功能2：物品携带问答 ========= -->
+<div class="card">
+    <h2>💬 物品携带问答</h2>
+    <p style="font-size:14px;color:#444;margin-bottom:12px;">输入物品名称，查询是否可以随身携带</p >
+    <div class="chat-box" id="chatBox">
+        <div class="chat-msg-bot"><span>您好！请问有什么物品能否携带的问题？直接输入物品名称即可。</span></div>
+    </div>
+    <div class="chat-row">
+        <input id="userQuestion" placeholder="例：充电宝、防晒喷雾、打火机..." />
+        <button onclick="sendQuestion()">发送</button>
+    </div>
+</div>
+
+
+<!-- ========= 功能3：AI 识图（双模型检测+边界框+摄像头+历史） ========= -->
+<div class="card">
+    <h2>📷 AI 识图 · 物品识别 <span id="modelStatus" class="model-status loading">模型加载中...</span></h2>
+    <p style="font-size:14px;color:#444;margin-bottom:12px;">上传物品图片，AI自动检测识别并查询携带规则。支持一图多物、边界框标注、置信度过滤。</p>
+
+    <!-- 上传区域 -->
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageUpload').click()">
+        <div style="font-size:28px;">📁</div>
+        <p>点击或拖拽图片到此处上传</p>
+        <p style="font-size:12px;">支持 JPG / PNG / WEBP，建议拍摄清晰物品照片</p>
+    </div>
+    <input type="file" id="imageUpload" accept="image/*" style="display:none;" onchange="previewImage(event)" />
+
+    <!-- 置信度阈值 -->
+    <div class="threshold-row">
+        <span>🎚️ 置信度阈值：</span>
+        <input type="range" id="thresholdSlider" min="10" max="90" value="30" step="5" oninput="updateThreshold()" />
+        <span class="threshold-value" id="thresholdValue">30%</span>
+        <span style="font-size:12px;color:#999;">（低于此值的检测结果将被过滤）</span>
+    </div>
+
+    <!-- 图片 + 检测框画布 -->
+    <div id="imagePreview" style="margin:10px 0;text-align:center;"></div>
+
+    <div style="display:flex;gap:10px;margin-top:10px;">
+        <button id="recognizeBtn" onclick="recognizeImage()" disabled>🔍 检测识别</button>
+        <button onclick="clearUpload()" style="background:#666;">清除</button>
+    </div>
+    <div class="result-area" id="recognizeResult">
+        <span style="color:#888;">上传图片后点击"检测识别"，AI将自动检测并查询携带规则</span>
+    </div>
+
+    <!-- 识别历史 -->
+    <div class="history-list" id="historySection" style="display:none;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;">📜 本次识别历史</div>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<script>
+    // 后端接口地址：前端由 Flask 同源托管，使用相对路径即可
+    // 本地开发直接运行 python contral/app.py 后访问 http://127.0.0.1:5000
+    const API_BASE = '';
+
+    // ============================================================
+    // 功能1：行李重量判断（对接后端）
+    // ============================================================
+    async function queryWeight() {
+        const airline = document.getElementById('airlineSelect').value;
+        const cabin = document.getElementById('cabinSelect').value;
+        const resultDiv = document.getElementById('weightResult');
+
+        resultDiv.innerHTML = '⏳ 查询中...';
+
+        try {
+            const res = await fetch(`${API_BASE}/api/weight/query?airline=${encodeURIComponent(airline)}&cabin=${encodeURIComponent(cabin)}`);
+            const data = await res.json();
+
+            if (data.found) {
+                resultDiv.innerHTML = `
+                    <div style="font-size:15px;">
+                        <span style="font-weight:600;">${data.airline}</span> ｜ <span style="font-weight:600;">${data.cabin}</span><br>
+                        ✅ 随身行李重量上限：<span style="font-size:20px;font-weight:700;color:#1a3a5c;">${data.weight_limit} kg</span><br>
+                        <span style="color:#555;font-size:13px;">💡 若您的行李超过该重量，建议办理托运。数据仅供参考，以航司官方公告为准。</span>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<span style="color:#b25a00;">⚠️ ${data.msg || '暂未收录该航司/舱位数据'}</span>`;
+            }
+        } catch (e) {
+            resultDiv.innerHTML = `<span style="color:#b25a00;">⚠️ 暂时无法获取航司重量信息，请稍后重试。</span>`;
+        }
+    }
+
+    // 页面加载后默认查询一次
+    window.onload = function() {
+        queryWeight();
+        loadAIModel();
+    };
+
+    // ============================================================
+    // 功能2：物品携带问答（对接后端）
+    // ============================================================
+    async function sendQuestion() {
+        const input = document.getElementById('userQuestion');
+        const chatBox = document.getElementById('chatBox');
+        const question = input.value.trim();
+        if (!question) return;
+
+        // 显示用户消息
+        chatBox.innerHTML += `<div class="chat-msg-user"><span>${question}</span></div>`;
+        input.value = '';
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // 调后端接口
+        try {
+            const res = await fetch(`${API_BASE}/api/item/query?keyword=${encodeURIComponent(question)}`);
+            const data = await res.json();
+
+            let reply = '';
+            if (data.found) {
+                reply = `【${data.item_name}】${data.carry_type}<br>`;
+                reply += `📌 限制说明：${data.limit_desc || '无'}<br>`;
+                if (data.detail_explain) reply += `📖 详细解释：${data.detail_explain}<br>`;
+                if (data.note) reply += `💡 备注：${data.note}`;
+            } else {
+                reply = data.answer || '暂无此方面的信息，建议您查询航司官网或咨询机场安检。';
+            }
+
+            chatBox.innerHTML += `<div class="chat-msg-bot"><span>${reply}</span></div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } catch (e) {
+            chatBox.innerHTML += `<div class="chat-msg-bot"><span>查询服务暂时不可用，请稍后重试。</span></div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    }
+
+    // 回车发送
+    document.getElementById('userQuestion').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendQuestion();
+    });
+
+// ============================================================
+// 物品携带规则库（功能2问答 和 功能3识图 共用）
+// status: safe=可随身 / caution=有条件 / danger=禁止随身
+// ============================================================
+const BUILTIN_RULES = {
+    '充电宝': {
+        status: 'caution', icon: '🔋',
+        advice: '额定能量 ≤ 100Wh 可随身携带（每人限带2个），100-160Wh 需航司批准（每人限带2个），> 160Wh 严禁携带。标识须清晰可辨。禁止托运，禁止飞行中充电。ICAO 2026新规：限带2个、禁飞行中充电。',
+        keywords: ['充电宝', '移动电源', 'power bank', 'powerbank', 'battery pack', 'battery']
+    },
+    '防晒喷雾': {
+        status: 'caution', icon: '🧴',
+        advice: '气雾剂类：国内航班自用每种限1件，容器 ≤ 100ml，需开瓶检查。国际航班容器 ≤ 100ml 装入 ≤ 1L 透明袋。超过需托运或放弃。',
+        keywords: ['防晒', '喷雾', 'sunscreen', 'spray', 'aerosol', 'hair spray']
+    },
+    '液体化妆品': {
+        status: 'caution', icon: '🧴',
+        advice: '国内航班：自用化妆品每种限1件，容器容积 ≤ 100ml，需开瓶检查。国际航班：容器 ≤ 100ml 且装入 ≤ 1L 透明密封袋。注意：100ml 指容器大小而非内容物量。超量需托运。',
+        keywords: ['液体', '化妆', 'lotion', 'liquid', 'perfume', '香水', 'cream', '面霜', '乳液', '爽肤水', '精华', '卸妆水', '洗发水', 'shampoo', '沐浴露', '护发素']
+    },
+    '水杯': {
+        status: 'safe', icon: '🥤',
+        advice: '空杯可随身携带，过安检时需清空杯内液体。保温杯同理。',
+        keywords: ['水杯', '杯子', '保温杯', '水壶', 'bottle', 'cup', 'tumbler', 'mug', 'thermos', '水樽']
+    },
+    '雨伞': {
+        status: 'safe', icon: '🌂',
+        advice: '折叠伞可随身携带，无特殊限制。长柄伞（展开长度 > 60cm）建议托运。',
+        keywords: ['雨伞', '伞', 'umbrella', '折叠伞', '长柄伞']
+    },
+    '笔记本电脑': {
+        status: 'safe', icon: '💻',
+        advice: '可随身携带。安检时需从包中单独取出过检。建议随身携带贵重电子产品，不要托运。',
+        keywords: ['笔记本电脑', '笔记本', '电脑', 'laptop', 'notebook', 'computer']
+    },
+    '手机': {
+        status: 'safe', icon: '📱',
+        advice: '可随身携带，无特殊限制。飞行途中需开启飞行模式或关机。',
+        keywords: ['手机', 'cellphone', 'cell phone', 'mobile phone', '电话', 'telephone', 'smartphone']
+    },
+    '数码相机': {
+        status: 'safe', icon: '📷',
+        advice: '可随身携带，建议妥善保护。备用锂电池需随身携带（不可托运）。',
+        keywords: ['相机', 'camera', '单反', '微单', 'Polaroid', '拍立得']
+    },
+    '背包': {
+        status: 'safe', icon: '🎒',
+        advice: '可随身携带，需注意尺寸和重量不超过航司限制。',
+        keywords: ['背包', 'backpack', 'rucksack', 'knapsack', 'haversack', '书包', '双肩包']
+    },
+    '行李箱': {
+        status: 'caution', icon: '🧳',
+        advice: '随身行李箱需符合尺寸限制（约 20×40×55cm）且不超过重量上限。超重或超尺寸需办理托运。',
+        keywords: ['行李箱', 'suitcase', 'trunk', '旅行箱', '拉杆箱', '旅行包']
+    },
+    '手提包': {
+        status: 'safe', icon: '👜',
+        advice: '可随身携带，需注意尺寸和重量不超过航司限制。',
+        keywords: ['手提包', 'handbag', 'purse', '钱包', 'wallet', 'pocketbook', '提包']
+    },
+    '太阳镜': {
+        status: 'safe', icon: '🕶️',
+        advice: '可随身携带，无特殊限制。建议放入眼镜盒保护。',
+        keywords: ['太阳镜', '墨镜', 'sunglasses', '眼镜', 'glasses', 'dark glasses']
+    },
+    '手表': {
+        status: 'safe', icon: '⌚',
+        advice: '可随身携带，无特殊限制。',
+        keywords: ['手表', 'watch', 'clock', '钟']
+    },
+    '耳机': {
+        status: 'safe', icon: '🎧',
+        advice: '可随身携带，无特殊限制。蓝牙耳机可在飞行模式后使用。',
+        keywords: ['耳机', 'headphone', 'earphone', 'earbuds', 'stereo']
+    },
+    '音箱': {
+        status: 'safe', icon: '🔊',
+        advice: '可随身携带，需注意尺寸。建议随身携带保护贵重设备。',
+        keywords: ['音箱', 'loudspeaker', 'speaker']
+    },
+    '剪刀': {
+        status: 'danger', icon: '✂️',
+        advice: '剪刀禁止随身携带，需办理托运。小型指甲剪/圆头安全剪刀可能放行，具体以安检为准。',
+        keywords: ['剪刀', 'scissors', '指甲剪', '裁缝剪']
+    },
+    '刀具': {
+        status: 'danger', icon: '🔪',
+        advice: '各类刀具（水果刀、瑞士军刀、餐刀、裁纸刀等）禁止随身携带，需办理托运。管制刀具禁止随身且禁止托运。登山杖如用作拐杖也需托运。',
+        keywords: ['刀', 'knife', 'dagger', 'blade', '水果刀', '军刀', '菜刀', '裁纸刀', 'letter opener', 'paper knife', '登山杖']
+    },
+    '折叠刀': {
+        status: 'danger', icon: '🔪',
+        advice: '折叠刀/弹簧刀属于管制刀具，禁止随身携带且禁止托运。',
+        keywords: ['折叠刀', 'pocketknife', 'jackknife', '弹簧刀', 'switchblade']
+    },
+    '螺丝刀': {
+        status: 'caution', icon: '🪛',
+        advice: '小型螺丝刀可能放行（以安检为准），大型工具建议托运。',
+        keywords: ['螺丝刀', 'screwdriver', '扳手', 'wrench', '工具']
+    },
+    '锤子': {
+        status: 'danger', icon: '🔨',
+        advice: '锤子等钝器禁止随身携带，需办理托运。',
+        keywords: ['锤子', 'hammer', '斧头', 'axe', 'mallet']
+    },
+    '开瓶器': {
+        status: 'caution', icon: '🍾',
+        advice: '开瓶器/开罐器含金属利刃部分，建议托运。简易塑料开瓶器可能放行。',
+        keywords: ['开瓶器', 'bottle opener', 'corkscrew', '开罐器', 'can opener']
+    },
+    '火柴': {
+        status: 'danger', icon: '🔥',
+        advice: '火柴属火种，禁止随身携带，也禁止托运。镁棒、点烟器等一切点火装置同理。',
+        keywords: ['火柴', 'matchstick', 'match', '火种', '镁棒']
+    },
+    '打火机': {
+        status: 'danger', icon: '🔥',
+        advice: '打火机属火种，禁止随身携带，也禁止托运。包括Zippo类、电子打火器等一切点火装置。',
+        keywords: ['打火机', 'lighter', '火种', '点火器', '点烟器']
+    },
+    '火把': {
+        status: 'danger', icon: '🔥',
+        advice: '火把/燃烧物禁止随身携带，也禁止托运。',
+        keywords: ['火把', 'burning torch', 'torch', '火炬']
+    },
+    '枪支': {
+        status: 'danger', icon: '🚫',
+        advice: '枪支（含仿真枪、玩具枪）属于严重违禁品，严禁随身携带且严禁托运。需提前向公安部门申报。',
+        keywords: ['枪', 'revolver', 'rifle', 'shotgun', 'pistol', 'assault rifle', '手枪', '步枪', '霰弹枪', '冲锋枪']
+    },
+    '药品': {
+        status: 'safe', icon: '💊',
+        advice: '个人常用药品（含液体药品如胰岛素）经安检确认后可随身携带，按飞行时间适量携带，超量部分托运。建议保留原包装和处方/医疗证明。液态药品需向安检出示说明。',
+        keywords: ['药', 'medicine', 'pill', '药品', '胰岛素', 'insulin', '处方', '药瓶', '药箱', 'medicine chest', 'syrup', '药片', '胶囊']
+    },
+    '创可贴': {
+        status: 'safe', icon: '🩹',
+        advice: '创可贴、绷带等急救用品可随身携带，无特殊限制。',
+        keywords: ['创可贴', 'Band Aid', 'bandage', '绷带', '胶布']
+    },
+    '注射器': {
+        status: 'caution', icon: '💉',
+        advice: '医用注射器需凭医生处方随身携带，需提前向安检说明。非医用注射器禁止携带。',
+        keywords: ['注射器', 'syringe', '针管', '针头']
+    },
+    '望远镜': {
+        status: 'safe', icon: '🔭',
+        advice: '望远镜/双筒望远镜可随身携带，无特殊限制。',
+        keywords: ['望远镜', 'binoculars', 'telescope', 'field glasses']
+    },
+    '足球': {
+        status: 'safe', icon: '⚽',
+        advice: '球类（足球、篮球、网球等）可随身携带，需注意尺寸。建议放气减小体积。',
+        keywords: ['足球', 'soccer ball', '篮球', 'basketball', '排球', 'volleyball', '网球', 'tennis ball', '乒乓球', 'ping-pong']
+    },
+    '滑板': {
+        status: 'caution', icon: '🛹',
+        advice: '滑板/长板尺寸较大，部分航司允许随身携带，部分需托运。建议提前咨询航司。',
+        keywords: ['滑板', 'skateboard', '长板', 'longboard']
+    },
+    '滑雪板': {
+        status: 'caution', icon: '🎿',
+        advice: '滑雪板/滑雪杖尺寸较大，一般需托运。部分航司有特殊运动器材托运政策。',
+        keywords: ['滑雪板', 'ski', '滑雪杖', 'snowboard', '雪橇']
+    },
+    '冲浪板': {
+        status: 'caution', icon: '🏄',
+        advice: '冲浪板尺寸超规，需办理托运。部分航司有特殊运动器材托运政策。',
+        keywords: ['冲浪板', 'surfboard', '帆板']
+    },
+    '文具盒': {
+        status: 'safe', icon: '✏️',
+        advice: '文具盒可随身携带。注意内含剪刀/裁纸刀等利器需取出托运。',
+        keywords: ['文具盒', 'pencil box', 'pencil case', '文具', '笔袋']
+    },
+    '卷笔刀': {
+        status: 'safe', icon: '✏️',
+        advice: '小型卷笔刀/削笔机可随身携带，无特殊限制。',
+        keywords: ['卷笔刀', 'pencil sharpener', '削笔机']
+    },
+    '密码锁': {
+        status: 'safe', icon: '🔒',
+        advice: '密码锁/挂锁可随身携带，无特殊限制。',
+        keywords: ['密码锁', 'combination lock', '挂锁', 'padlock', '锁']
+    },
+    '气球': {
+        status: 'caution', icon: '🎈',
+        advice: '未充气气球可随身携带。已充氢气球禁止携带（氢气易燃）。充氦气球部分航司有限制。',
+        keywords: ['气球', 'balloon']
+    },
+    '储蓄罐': {
+        status: 'safe', icon: '🐷',
+        advice: '储蓄罐可随身携带，无特殊限制。',
+        keywords: ['储蓄罐', 'piggy bank', '存钱罐']
+    },
+    '电风扇': {
+        status: 'safe', icon: '🌀',
+        advice: '小型便携电风扇可随身携带，无特殊限制。',
+        keywords: ['电风扇', 'electric fan', 'blower', '小风扇', '便携风扇']
+    },
+    '台灯': {
+        status: 'safe', icon: '💡',
+        advice: '小型台灯可随身携带，无特殊限制。',
+        keywords: ['台灯', 'table lamp', 'lamp', '灯', 'lampshade', '灯罩']
+    },
+    '蜡烛': {
+        status: 'danger', icon: '🕯️',
+        advice: '蜡烛属易燃物品，禁止随身携带，建议不要携带或咨询航司托运政策。',
+        keywords: ['蜡烛', 'candle']
+    },
+    '键盘': {
+        status: 'safe', icon: '⌨️',
+        advice: '电脑键盘可随身携带，无特殊限制。',
+        keywords: ['键盘', 'keyboard', 'computer keyboard']
+    },
+    '鼠标': {
+        status: 'safe', icon: '🖱️',
+        advice: '电脑鼠标可随身携带，无特殊限制。',
+        keywords: ['鼠标', 'mouse', 'computer mouse']
+    },
+    '磁带': {
+        status: 'safe', icon: '📼',
+        advice: '磁带/CD等存储介质可随身携带，无特殊限制。',
+        keywords: ['磁带', 'cassette', 'CD', '光盘']
+    },
+    '酒类': {
+        status: 'caution', icon: '🍷',
+        advice: '酒类禁止随身携带。托运：容器 ≤ 5L，酒精度 ≤ 24° 不限量，24°-70° 限 5L/人，> 70° 禁止托运。须标识清晰、零售包装。',
+        keywords: ['酒', 'wine', 'beer', 'red wine', '白酒', '啤酒', '葡萄酒', '威士忌', 'whiskey', '酒瓶']
+    },
+    '饮料': {
+        status: 'caution', icon: '🥤',
+        advice: '液态饮料单瓶 ≤ 100ml 可随身（需装透明袋），超过需安检前饮用完毕或放弃。机场免税店购买的液体密封袋装可携带。',
+        keywords: ['饮料', 'soda', 'pop bottle', 'soda bottle', 'juice', '果汁', '汽水']
+    },
+    '肥皂': {
+        status: 'safe', icon: '🧼',
+        advice: '肥皂/香皂可随身携带，无特殊限制。',
+        keywords: ['肥皂', 'soap', '香皂']
+    },
+    '散粉': {
+        status: 'safe', icon: '💄',
+        advice: '粉状化妆品（散粉、粉饼等）可随身携带，无液体限制。',
+        keywords: ['散粉', 'face powder', 'powder', '粉饼', '粉底']
+    },
+    '听诊器': {
+        status: 'safe', icon: '🩺',
+        advice: '听诊器等医疗器械可随身携带，无特殊限制。',
+        keywords: ['听诊器', 'stethoscope']
+    },
+    '鞋类': {
+        status: 'safe', icon: '👟',
+        advice: '鞋类可随身携带，无特殊限制。注意鞋内可能藏匿违禁品，安检时可能要求脱鞋检查。',
+        keywords: ['鞋', 'shoe', 'sandal', '凉鞋', '拖鞋', 'sneaker', '运动鞋', '靴子', 'boot']
+    },
+    '帽子': {
+        status: 'safe', icon: '🎩',
+        advice: '帽子可随身携带，无特殊限制。',
+        keywords: ['帽子', 'hat', 'bonnet', 'cowboy hat', 'cap', '草帽', '棒球帽']
+    },
+    '领带': {
+        status: 'safe', icon: '👔',
+        advice: '领带/领结可随身携带，无特殊限制。',
+        keywords: ['领带', 'bolo tie', 'bow tie', '领结', 'tie']
+    },
+    '风衣': {
+        status: 'safe', icon: '🧥',
+        advice: '衣物可随身携带，无特殊限制。',
+        keywords: ['风衣', 'trench coat', '外套', 'coat', '夹克', 'jacket']
+    },
+    '乐器': {
+        status: 'caution', icon: '🎸',
+        advice: '小型乐器（三边之和 ≤ 115cm，重量 ≤ 8kg）可带入客舱，共享舱位行李额度。大型乐器需购买额外座位或托运。钢琴、竖琴等超大乐器不能作为行李运输。建议出行前向航司申请。',
+        keywords: ['吉他', 'guitar', '乐器', 'musical instrument', 'banjo', 'mandolin', '小提琴', 'violin', 'cello', '大提琴', '笛子', 'flute', '口琴', 'harmonica']
+    },
+    '高尔夫球杆': {
+        status: 'danger', icon: '⛳',
+        advice: '高尔夫球杆属钝器，禁止随身携带，需办理托运。国际航班部分航司额外提供10kg免费额度。须妥善包装。',
+        keywords: ['高尔夫', 'golf', '球杆', 'golf club']
+    },
+    '钓鱼用具': {
+        status: 'danger', icon: '🎣',
+        advice: '钓鱼竿属锐器/钝器，禁止随身携带，需托运。含钓竿、卷轴、钓鱼靴等。国际航班部分航司免费托运一套 ≤ 23kg。',
+        keywords: ['钓鱼', 'fishing', '鱼竿', 'fishing rod', '钓具']
+    },
+    '弓箭': {
+        status: 'danger', icon: '🏹',
+        advice: '弓、箭属管制器具，禁止随身携带，需办理托运。',
+        keywords: ['弓', 'arrow', '弓箭', 'archery', '弩', 'crossbow']
+    },
+    '自行车': {
+        status: 'danger', icon: '🚲',
+        advice: '自行车需托运，轮胎须放气。折叠自行车须折叠绑牢。仅承运非电动自行车。电动自行车含锂电池禁止托运，电池须拆下按锂电池规定随身携带。',
+        keywords: ['自行车', 'bicycle', 'bike', '单车', '脚踏车']
+    },
+    '电子烟': {
+        status: 'caution', icon: '🚬',
+        advice: '电子烟可随身携带，禁止托运。锂电池需满足 ≤ 100Wh 规定。烟油按液态物品规则：国内航班禁随身，可托运。',
+        keywords: ['电子烟', 'e-cigarette', 'electronic cigarette', 'vape', 'vaping', '电子香烟']
+    },
+    '无人机': {
+        status: 'caution', icon: '🚁',
+        advice: '无人机含锂电池，电池须随身携带（禁托运）， ≤ 100Wh 可带，100-160Wh 需航司批准。机体可托运。建议出行前向航司确认。',
+        keywords: ['无人机', 'drone', 'uav', 'quadcopter']
+    },
+    '平衡车': {
+        status: 'danger', icon: '🛴',
+        advice: '平衡车/电动滑板禁止托运。电池须拆下随身携带（ ≤ 100Wh）。电池不可拆卸的平衡车禁止运输。建议出行前向航司确认。',
+        keywords: ['平衡车', 'hoverboard', 'electric scooter', '电动滑板', '电动滑板车', 'segway']
+    },
+    '体温计': {
+        status: 'caution', icon: '🌡️',
+        advice: '水银体温计禁止随身携带，可托运（保护盒内，每人限1支）。电子体温计（锂电池 ≤ 100Wh）可随身携带。',
+        keywords: ['体温计', 'thermometer', '温度计', '水银体温计']
+    },
+    '轮椅': {
+        status: 'safe', icon: '♿',
+        advice: '折叠手动轮椅可带入客舱。电动轮椅锂电池 ≤ 300Wh，最多带1个 ≤ 300Wh 或2个各 ≤ 160Wh 备用电池。需提前向航司申请办理。',
+        keywords: ['轮椅', 'wheelchair', '助行器', '代步车']
+    },
+    '婴儿奶粉': {
+        status: 'safe', icon: '🍼',
+        advice: '婴儿航空旅行途中必需的液态乳制品经安检确认后可随身携带。固体奶粉可随身携带。建议向航司申请机上免费提供液态乳制品。',
+        keywords: ['奶粉', 'milk powder', '婴儿奶粉', '婴儿食品', 'baby food', 'formula']
+    },
+    '母乳': {
+        status: 'safe', icon: '🥛',
+        advice: '保存好的母乳属婴儿必需液态物品，经安检确认后可随身携带，超量部分托运。建议携带相关证明。',
+        keywords: ['母乳', 'breast milk', '乳汁']
+    },
+    '婴儿推车': {
+        status: 'safe', icon: '👶',
+        advice: '便携式可折叠婴儿车折叠后 ≤ 55×40×20cm 可带入客舱。超过尺寸须托运。不占座婴儿可免费托运一辆婴儿车。',
+        keywords: ['婴儿车', 'stroller', '婴儿推车', 'pram', 'buggy', '儿童安全座椅', 'car seat']
+    },
+    '蜂蜜': {
+        status: 'danger', icon: '🍯',
+        advice: '蜂蜜属液态食品，国内航班禁止随身携带，可办理托运。国际航班容器 ≤ 100ml 装入透明袋可随身。',
+        keywords: ['蜂蜜', 'honey']
+    },
+    '酱料': {
+        status: 'danger', icon: '🫙',
+        advice: '酱类食品（辣椒酱、甜面酱、牛肉酱等）属液态食品，国内航班禁止随身携带，可托运。',
+        keywords: ['酱', 'sauce', '酱料', '辣椒酱', 'chili sauce', 'soy sauce', '酱油']
+    },
+    '固体食品': {
+        status: 'safe', icon: '🍪',
+        advice: '真空包装、无流动液体的固体食品经安检确认后可随身携带。含液体的礼盒（食用油、酱菜等）须托运。',
+        keywords: ['食品', 'food', '零食', 'snack', '饼干', 'cookie', '巧克力', 'chocolate', '坚果', 'nuts', '粽子', '八宝粥']
+    },
+    '消毒液': {
+        status: 'danger', icon: '🧴',
+        advice: '酒精 > 70% 消毒液禁止随身和托运。酒精 ≤ 70% 可托运（零售包装，每瓶 ≤ 500ml）。医用碘伏同理。消毒湿巾（无游离液体）经安检可随身携带。',
+        keywords: ['消毒', 'disinfectant', '酒精', 'alcohol', '消毒液', '消毒湿巾', '消毒棉片', '碘伏', '84消毒液']
+    },
+    '烟花鞭炮': {
+        status: 'danger', icon: '🎆',
+        advice: '烟花爆竹、烟饼、礼花弹、仙女棒、摔炮等一切烟火制品禁止随身携带和托运。包括钢丝棉烟花、烟雾类烟花等。',
+        keywords: ['烟花', 'fireworks', '鞭炮', 'firecracker', '爆竹', '礼花', '仙女棒', '摔炮', '烟饼']
+    },
+    '宠物': {
+        status: 'caution', icon: '🐕',
+        advice: '宠物（猫、狗）须托运，需检疫证明和专用容器。南航部分航班提供"宠物进客舱"服务（限小型犬猫，箱 ≤ 35×28×24cm）。导盲犬等服务犬可带入客舱。出行前向航司确认。',
+        keywords: ['宠物', 'pet', '猫', 'cat', 'dog', '狗', '小动物', '导盲犬', 'service dog', 'guide dog']
+    },
+    '骨灰': {
+        status: 'safe', icon: '⚱️',
+        advice: '骨灰可携带。须装在密封塑料袋内，外加木盒，最外层布包装。建议提前与航司联系确认承运条件和包装要求。',
+        keywords: ['骨灰', 'ashes', '骨灰盒', ' cremation']
+    },
+    '鲜花': {
+        status: 'safe', icon: '💐',
+        advice: '鲜花可随身携带，须符合手提行李尺寸限制（ ≤ 20×40×55cm）。体积或重量过大须按行李托运。',
+        keywords: ['鲜花', 'flower', '花束', 'bouquet']
+    },
+    '干冰': {
+        status: 'caution', icon: '🧊',
+        advice: '干冰可用于易腐物品制冷，需航司批准。每人携带 ≤ 2.5kg。包装须标记"干冰（DRY ICE）"及净重。',
+        keywords: ['干冰', 'dry ice', '固体二氧化碳']
+    },
+    '牙膏': {
+        status: 'caution', icon: '🪥',
+        advice: '牙膏属例外液态物品。国内航班自用每种限1件 ≤ 100g(ml)。国际航班容器 ≤ 100ml 装入透明袋。超过需托运。',
+        keywords: ['牙膏', 'toothpaste', '牙刷', '剃须膏', 'shaving cream']
+    },
+    '指甲油': {
+        status: 'caution', icon: '💅',
+        advice: '指甲油属液态化妆品。国内航班自用每种限1件 ≤ 100ml 需开瓶检查。国际航班 ≤ 100ml 装入透明袋。',
+        keywords: ['指甲油', 'nail polish', 'nail polish remover', '洗甲水', '卸甲水']
+    },
+    '保温杯': {
+        status: 'caution', icon: '🥤',
+        advice: '空保温杯可随身携带。杯内有液体需按液态物品规则：国内航班须清空，国际航班 ≤ 100ml 装入透明袋。',
+        keywords: ['保温杯', 'thermos', 'thermos flask', 'vacuum flask', '保温壶']
+    },
+    'CPAP呼吸机': {
+        status: 'safe', icon: '🏥',
+        advice: 'CPAP持续正压呼吸机可在巡航阶段使用，起降等关键阶段须停止。如含锂电池需满足锂电池规定。建议提前向航司咨询。',
+        keywords: ['呼吸机', 'cpap', '呼吸器', 'respirator', '医疗设备', 'medical device']
+    },
+};
+
+// ============================================================
+// 数据层：localStorage 持久化（规则管理功能使用）
+// 修改后的规则保存在浏览器本地，问答和AI识图实时使用最新数据
+// ============================================================
+const STORAGE_KEY = 'yiqifei_rules';
+
+function loadRules() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try {
+            var parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object') {
+                var keys = Object.keys(parsed);
+                if (keys.length > 0) {
+                    // 验证第一条数据格式是否合法（有 status 和 keywords）
+                    var first = parsed[keys[0]];
+                    if (first && first.status && first.keywords) {
+                        return parsed;
+                    }
+                }
+            }
+        } catch (e) { }
+    }
+    // localStorage 为空、损坏或格式不对，用内置规则初始化
+    var copy = JSON.parse(JSON.stringify(BUILTIN_RULES));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(copy)); } catch(e) {}
+    return copy;
+}
+
+function saveRulesToStorage(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let carryRules = loadRules();
+console.log('📋 规则库已加载，共 ' + Object.keys(carryRules).length + ' 条规则');
+
+// 跨标签页实时同步：管理页面修改规则后，本页面自动刷新
+window.addEventListener('storage', function(e) {
+    if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+            var parsed = JSON.parse(e.newValue);
+            if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                carryRules = parsed;
+                console.log('✅ 规则库已从管理页面同步更新，共 ' + Object.keys(carryRules).length + ' 条');
+            }
+        } catch (err) { }
+    }
+});
+
+// ============================================================
+// ImageNet 类别名 → 中文名 映射表
+// MobileNet 返回英文标签，这里映射到中文物品名
+// ============================================================
+const imagenetToChinese = {
+    // 饮水容器
+    'water bottle': '水杯',
+    'cup': '水杯',
+    'tumbler': '水杯',
+    'coffee mug': '水杯',
+    'eggnog': '水杯',
+    'red wine': '酒类',
+    'wine bottle': '酒类',
+    'beer bottle': '酒类',
+    'red wine bottle': '酒类',
+    'pop bottle, soda bottle': '饮料',
+    'bottle': '水杯',
+    // 电子产品
+    'notebook, laptop computer': '笔记本电脑',
+    'laptop': '笔记本电脑',
+    'cellular telephone, cellphone': '手机',
+    'cellphone': '手机',
+    'dial telephone': '手机',
+    'telephone, phone': '手机',
+    'digital camera': '数码相机',
+    'camera': '数码相机',
+    'polaroid camera': '数码相机',
+    'headphone': '耳机',
+    'stereo': '耳机',
+    'loudspeaker': '音箱',
+    'cassette': '磁带',
+    'cassette player': '磁带',
+    'cd player': '磁带',
+    'digital clock': '手表',
+    'digital watch': '手表',
+    'analog clock': '手表',
+    'clock': '手表',
+    'electric fan, blower': '电风扇',
+    'space heater': '电风扇',
+    'table lamp': '台灯',
+    'lampshade': '台灯',
+    'lamp': '台灯',
+    'computer keyboard': '键盘',
+    'keyboard': '键盘',
+    'mouse, computer mouse': '鼠标',
+    'modem': '鼠标',
+    'web site': '鼠标',
+    'screen, crt screen': '鼠标',
+    'monitor': '鼠标',
+    // 箱包
+    'backpack, back pack, knapsack, packsack, rucksack, haversack': '背包',
+    'backpack': '背包',
+    'suitcase, traveling bag': '行李箱',
+    'trunk': '行李箱',
+    'wallet, billfold': '手提包',
+    'purse': '手提包',
+    'pocketbook': '手提包',
+    'handbag': '手提包',
+    // 服饰
+    'sunglasses, dark glasses': '太阳镜',
+    'sunglasses': '太阳镜',
+    'eyeglasses': '太阳镜',
+    'sandal': '鞋类',
+    'shoe': '鞋类',
+    'running shoe': '鞋类',
+    'cowboy hat': '帽子',
+    'bonnet': '帽子',
+    'wig': '帽子',
+    'bow tie': '领带',
+    'bolo tie': '领带',
+    'windsor tie': '领带',
+    'trench coat': '风衣',
+    // 工具/锐器
+    'scissors': '剪刀',
+    'knife': '刀具',
+    'pocketknife, jackknife': '折叠刀',
+    'pocketknife': '折叠刀',
+    'letter opener, paper knife, paperknife': '刀具',
+    'screwdriver': '螺丝刀',
+    'hammer': '锤子',
+    'mallet': '锤子',
+    'can opener': '开瓶器',
+    'corkscrew, bottle opener': '开瓶器',
+    'chain saw, chainsaw': '锤子',
+    // 化妆品/液体
+    'hair spray': '防晒喷雾',
+    'lotion, liquid': '液体化妆品',
+    'lotion': '液体化妆品',
+    'sunscreen': '防晒喷雾',
+    'soap': '肥皂',
+    'perfume': '液体化妆品',
+    'face powder': '散粉',
+    'powder': '散粉',
+    // 医药
+    'pill bottle': '药品',
+    'medicine chest': '药品',
+    'band aid': '创可贴',
+    'stethoscope': '听诊器',
+    'syringe': '注射器',
+    // 违禁品
+    'matchstick': '火柴',
+    'burning torch': '火把',
+    'torch': '火把',
+    'revolver, six-shooter': '枪支',
+    'rifle': '枪支',
+    'assault rifle': '枪支',
+    'shotgun': '枪支',
+    // 运动/休闲
+    'soccer ball': '足球',
+    'tennis ball': '足球',
+    'basketball': '足球',
+    'volleyball': '足球',
+    'ping-pong ball': '足球',
+    'skateboard': '滑板',
+    'ski': '滑雪板',
+    'surfboard': '冲浪板',
+    // 其他
+    'binoculars, field glasses': '望远镜',
+    'telescope': '望远镜',
+    'pencil box, pencil case': '文具盒',
+    'pencil sharpener': '卷笔刀',
+    'combination lock': '密码锁',
+    'padlock': '密码锁',
+    'safety pin': '密码锁',
+    'balloon': '气球',
+    'umbrella': '雨伞',
+    'piggy bank': '储蓄罐',
+    'candle': '蜡烛',
+    'electric guitar': '乐器',
+    'banjo': '乐器',
+    'acoustic guitar': '乐器',
+    'magnetic compass': '密码锁',
+    'cd player': '磁带',
+    'cassette player': '磁带',
+    'flute': '乐器',
+    'oboe': '乐器',
+    'harmonica': '乐器',
+    'accordion': '乐器',
+    'banjo': '乐器',
+    ' acoustic guitar': '乐器',
+    'steel drum': '乐器',
+    'maraca': '乐器',
+    'flute': '乐器',
+    'oboe': '乐器',
+    'saxophone': '乐器',
+    'French horn': '乐器',
+    'trombone': '乐器',
+    'cello': '乐器',
+    'violin': '乐器',
+    'harp': '乐器',
+    'grand piano': '乐器',
+    'upright piano': '乐器',
+    'electric guitar': '乐器',
+    'acoustic guitar': '乐器',
+    'guacamole': '固体食品',
+    'mashed potato': '固体食品',
+    'bread': '固体食品',
+    'bagel': '固体食品',
+    'pretzel': '固体食品',
+    'cheeseburger': '固体食品',
+    'hotdog': '固体食品',
+    'ice cream': '固体食品',
+    'ice lolly': '固体食品',
+    'chocolate sauce': '固体食品',
+    'dough': '固体食品',
+    'meat loaf': '固体食品',
+    'plate': '固体食品',
+    'tray': '固体食品',
+    'restaurant': '固体食品',
+    'menu': '固体食品',
+    'carbonated water': '饮料',
+    'espresso': '饮料',
+    'coffee': '饮料',
+    'tea': '饮料',
+    'cup': '水杯',
+    'eggnog': '水杯',
+    'water jug': '水杯',
+    'cocktail shaker': '酒类',
+    'whiskey jug': '酒类',
+    'beer glass': '酒类',
+    'goblet': '水杯',
+    'water bottle': '保温杯',
+    'wine glass': '酒类',
+    'red wine': '酒类',
+    'beer': '酒类',
+    'whiskey': '酒类',
+    'crutch': '轮椅',
+    'medical syringe': '注射器',
+    'stethoscope': 'CPAP呼吸机',
+    'oxygen mask': 'CPAP呼吸机',
+    'nail': '刀具',
+    'screw': '螺丝刀',
+    'chain': '锤子',
+    'hammer': 'hammer',
+    'measuring stick': '密码锁',
+    'ruler': '文具盒',
+    'crossword puzzle': '文具盒',
+    'jigsaw': '文具盒',
+    'binder': '文具盒',
+    'book jacket': '文具盒',
+    'comic book': '文具盒',
+    'notebook': '文具盒',
+    'envelope': '文具盒',
+    'menu': '文具盒',
+    'fax': '文具盒',
+    'sewing machine': '刀具',
+    'nosebag': '宠物',
+    'muzzle': '宠物',
+    'dogsled': '宠物',
+    'hamper': '行李箱',
+    'carton': '行李箱',
+    'grocery store': '固体食品',
+    'confectionery': '固体食品',
+    'bakery': '固体食品',
+    'butcher shop': '固体食品',
+    'seafood': '固体食品',
+    'honeycomb': '蜂蜜',
+    'hot pot': '酱料',
+    'soup bowl': '酱料',
+    'plate rack': '固体食品',
+};
+
+// ============================================================
+// COCO-SSD 80类 → 中文物品名 映射表
+// COCO-SSD 返回英文类名（如 "cell phone"），映射到 carryRules
+// ============================================================
+const cocoToChinese = {
+    'person': null,
+    'backpack': '背包',
+    'umbrella': '雨伞',
+    'handbag': '手提包',
+    'tie': '领带',
+    'suitcase': '行李箱',
+    'skis': '滑雪板',
+    'snowboard': '滑雪板',
+    'sports ball': '足球',
+    'skateboard': '滑板',
+    'surfboard': '冲浪板',
+    'tennis racket': '乐器',
+    'bottle': '水杯',
+    'wine glass': '酒类',
+    'cup': '水杯',
+    'fork': '刀具',
+    'knife': '刀具',
+    'spoon': '刀具',
+    'bowl': '水杯',
+    'banana': '固体食品',
+    'apple': '固体食品',
+    'sandwich': '固体食品',
+    'orange': '固体食品',
+    'broccoli': '固体食品',
+    'carrot': '固体食品',
+    'hot dog': '固体食品',
+    'pizza': '固体食品',
+    'donut': '固体食品',
+    'cake': '固体食品',
+    'laptop': '笔记本电脑',
+    'mouse': '鼠标',
+    'remote': null,
+    'keyboard': '键盘',
+    'cell phone': '手机',
+    'tv': null,
+    'book': '文具盒',
+    'clock': '手表',
+    'vase': '水杯',
+    'scissors': '剪刀',
+    'teddy bear': null,
+    'hair drier': '电风扇',
+    'toothbrush': '牙膏',
+    'chair': null,
+    'couch': null,
+    'potted plant': '鲜花',
+    'bed': null,
+    'dining table': null,
+    'toilet': null,
+    'bicycle': '自行车',
+    'car': null,
+    'motorcycle': null,
+    'airplane': null,
+    'bus': null,
+    'train': null,
+    'truck': null,
+    'boat': null,
+    'bird': '宠物',
+    'cat': '宠物',
+    'dog': '宠物',
+    'horse': null,
+    'sheep': null,
+    'cow': null,
+    'elephant': null,
+    'bear': null,
+    'zebra': null,
+    'giraffe': null,
+    'bench': null,
+    'fire hydrant': null,
+    'stop sign': null,
+    'parking meter': null,
+    'traffic light': null,
+    'frisbee': null,
+    'kite': null,
+    'baseball bat': '锤子',
+    'baseball glove': null,
+    'microwave': null,
+    'oven': null,
+    'toaster': null,
+    'sink': null,
+    'refrigerator': null,
+};
+
+// ============================================================
+// 功能1：行李重量判断
+// ============================================================
+// 匹配 ImageNet 类名到中文（精确→别名→子串→关键词 四级回退）
+function matchImageNetToChinese(className) {
+    const lower = className.toLowerCase();
+    // 1. 精确匹配
+    if (imagenetToChinese[lower]) return imagenetToChinese[lower];
+    // 2. 逗号分隔的每个别名匹配
+    const alternatives = lower.split(',').map(s => s.trim());
+    for (const alt of alternatives) {
+        if (imagenetToChinese[alt]) return imagenetToChinese[alt];
+    }
+    // 3. 子串匹配（包含关系）
+    for (const key in imagenetToChinese) {
+        if (lower.includes(key) || key.includes(lower)) {
+            return imagenetToChinese[key];
+        }
+    }
+    // 4. 关键词模糊匹配 carryRules
+    for (const [itemName, rule] of Object.entries(carryRules)) {
+        for (const kw of rule.keywords) {
+            if (lower.includes(kw.toLowerCase())) return itemName;
+        }
+    }
+    return null;
+}
+
+// ============================================================
+// 功能3：AI 识图（COCO-SSD目标检测 + MobileNet分类 双模型）
+// ============================================================
+let cocoModel = null;       // COCO-SSD 目标检测模型
+let mobilenetModel = null;  // MobileNet 图像分类模型（备用）
+let modelLoadFailed = false;
+let recognitionHistory = [];  // 识别历史
+
+// 置信度阈值
+function updateThreshold() {
+    const slider = document.getElementById('thresholdSlider');
+    const display = document.getElementById('thresholdValue');
+    display.textContent = slider.value + '%';
+}
+
+// 加载AI模型（双模型并行加载）
+async function loadAIModel() {
+    const statusEl = document.getElementById('modelStatus');
+    const recognizeBtn = document.getElementById('recognizeBtn');
+    try {
+        statusEl.textContent = '模型加载中...';
+        statusEl.className = 'model-status loading';
+        // 并行加载两个模型
+        const [coco, mobile] = await Promise.all([
+            cocoSsd.load({ base: 'mobilenet_v2' }),
+            mobilenet.load({ version: 2, alpha: 1.0 }).catch(() => null)
+        ]);
+        cocoModel = coco;
+        mobilenetModel = mobile;
+        statusEl.textContent = mobilenetModel ? '✅ 双模型就绪' : '✅ 检测模型就绪';
+        statusEl.className = 'model-status ready';
+        recognizeBtn.disabled = false;
+    } catch (err) {
+        console.error('模型加载失败:', err);
+        modelLoadFailed = true;
+        statusEl.textContent = '❌ 模型加载失败';
+        statusEl.className = 'model-status error';
+        statusEl.title = '可能原因：网络无法连接模型服务器。识别功能将降级为模拟模式。';
+        recognizeBtn.disabled = false;
+        recognizeBtn.textContent = '🔍 模拟识别';
+    }
+}
+
+// 拖拽上传
+const uploadArea = document.getElementById('uploadArea');
+uploadArea.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+uploadArea.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+});
+uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('image/')) {
+        document.getElementById('imageUpload').files = files;
+        previewImage({ target: { files: files } });
+    }
+});
+
+// 图片预览（使用画布容器，方便叠加检测框）
+function previewImage(event) {
+    const file = event.target.files[0];
+    const previewDiv = document.getElementById('imagePreview');
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewDiv.innerHTML = `<div class="image-canvas-wrap"><img src="${e.target.result}" id="previewImg" alt="预览图片" onload="onPreviewLoaded()" /><canvas id="detectionCanvas"></canvas></div>`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        previewDiv.innerHTML = '';
+    }
+    document.getElementById('recognizeResult').innerHTML =
+        '<span style="color:#888;">已上传图片，点击"检测识别"开始AI检测</span>';
+}
+
+function onPreviewLoaded() {
+    // 图片加载完成，调整画布尺寸
+    const img = document.getElementById('previewImg');
+    const canvas = document.getElementById('detectionCanvas');
+    if (img && canvas) {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+    }
+}
+
+function clearUpload() {
+    document.getElementById('imageUpload').value = '';
+    document.getElementById('imagePreview').innerHTML = '';
+    document.getElementById('recognizeResult').innerHTML =
+        '<span style="color:#888;">上传图片后点击"检测识别"，AI将自动检测并查询携带规则</span>';
+}
+
+// ============== 核心：AI 检测识别 ==============
+async function recognizeImage() {
+    const resultDiv = document.getElementById('recognizeResult');
+    const img = document.getElementById('previewImg');
+
+    if (!img) {
+        resultDiv.innerHTML = '<span style="color:#b25a00;">⚠️ 请先上传一张物品图片。</span>';
+        return;
+    }
+
+    // 模型未加载完成
+    if (!cocoModel && !modelLoadFailed) {
+        resultDiv.innerHTML = '<span style="color:#b25a00;">⏳ AI模型正在加载中，请稍后再试...</span>';
+        return;
+    }
+
+    // 模型加载失败 → 降级模拟模式
+    if (modelLoadFailed) {
+        resultDiv.innerHTML = '<span><span class="spinner"></span>模型不可用，使用模拟识别...</span>';
+        setTimeout(() => mockRecognize(img, resultDiv), 800);
+        return;
+    }
+
+    // ===== 正式双模型检测 =====
+    resultDiv.innerHTML = '<span><span class="spinner"></span>AI 检测中，请稍候...</span>';
+
+    try {
+        const threshold = parseFloat(document.getElementById('thresholdSlider').value) / 100;
+
+        // 1. COCO-SSD 目标检测（边界框 + 多物体）
+        const detections = await cocoModel.detect(img, 20, threshold);
+
+        // 2. 如果COCO-SSD没检测到有用物体，用MobileNet分类作为补充
+        let mobilenetPredictions = [];
+        const usefulDetections = detections.filter(d => cocoToChinese[d.class] !== null);
+        if (usefulDetections.length === 0 && mobilenetModel) {
+            mobilenetPredictions = await mobilenetModel.classify(img, 5);
+        }
+
+        // 3. 绘制检测结果
+        if (usefulDetections.length > 0) {
+            drawDetectionBoxes(usefulDetections, img);
+            displayDetectionResults(usefulDetections, resultDiv);
+            addToHistory(usefulDetections);
+        } else if (mobilenetPredictions.length > 0) {
+            // MobileNet 分类结果
+            displayClassificationResults(mobilenetPredictions, resultDiv);
+            addToHistory(mobilenetPredictions.map(p => ({ class: p.className, score: p.probability })));
+        } else if (detections.length > 0) {
+            // 检测到物体但都不在规则库中
+            drawDetectionBoxes(detections, img);
+            displayUnmatchedDetections(detections, resultDiv);
+        } else {
+            resultDiv.innerHTML = '<span style="color:#b25a00;">⚠️ 未能检测到任何物品，请尝试更清晰的物品照片，或降低置信度阈值后重试。</span>';
+        }
+    } catch (err) {
+        console.error('检测失败:', err);
+        resultDiv.innerHTML = `<span style="color:#b25a00;">⚠️ 检测过程出错：${err.message}。请重试或换一张图片。</span>`;
+    }
+}
+
+// 绘制边界框
+function drawDetectionBoxes(detections, img) {
+    const canvas = document.getElementById('detectionCanvas');
+    if (!canvas) return;
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const colors = {
+        'safe': '#1a7a3a',
+        'caution': '#b25a00',
+        'danger': '#b22222',
+        'unknown': '#1a3a5c'
+    };
+
+    for (const det of detections) {
+        const [x, y, w, h] = det.bbox;
+        const chineseName = cocoToChinese[det.class];
+        const rule = chineseName ? carryRules[chineseName] : null;
+        const color = rule ? colors[rule.status] : colors['unknown'];
+        const label = chineseName || det.class;
+
+        // 绘制矩形框
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(2, canvas.width / 400);
+        ctx.strokeRect(x, y, w, h);
+
+        // 绘制标签背景
+        const fontSize = Math.max(14, canvas.width / 40);
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        const text = `${label} ${(det.score * 100).toFixed(0)}%`;
+        const textWidth = ctx.measureText(text).width;
+        const padding = 4;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y - fontSize - padding * 2, textWidth + padding * 2, fontSize + padding * 2);
+
+        // 绘制标签文字
+        ctx.fillStyle = 'white';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x + padding, y - fontSize / 2 - padding);
+    }
+}
+
+// 展示COCO-SSD检测结果（多物体卡片）
+function displayDetectionResults(detections, resultDiv) {
+    let html = '<div style="font-size:14px;color:#555;margin-bottom:10px;">🎯 共检测到 <strong>' + detections.length + '</strong> 个物品：</div>';
+
+    for (const det of detections) {
+        const chineseName = cocoToChinese[det.class];
+        const rule = chineseName ? carryRules[chineseName] : null;
+        const pct = (det.score * 100).toFixed(1);
+
+        if (rule) {
+            const statusText = rule.status === 'safe' ? '✅ 可随身携带' :
+                               rule.status === 'caution' ? '⚠️ 有条件携带' :
+                               '❌ 禁止随身携带';
+            html += `
+                <div class="detect-card ${rule.status}">
+                    <div class="detect-card-header">
+                        <span class="detect-card-name">${rule.icon} ${chineseName}</span>
+                        <span class="carry-badge ${rule.status}">${statusText}</span>
+                        <span class="detect-card-confidence">置信度 ${pct}%</span>
+                    </div>
+                    <div class="detect-card-advice">${rule.advice}</div>
+                </div>
+            `;
+        } else {
+            // COCO检测到但不在规则库
+            html += `
+                <div class="detect-card" style="border-left-color:#888;">
+                    <div class="detect-card-header">
+                        <span class="detect-card-name">${det.class}</span>
+                        <span class="detect-card-confidence">置信度 ${pct}%</span>
+                    </div>
+                    <div class="detect-card-advice" style="color:#999;">该物品暂未收录携带规则，可在上方"物品携带问答"中手动查询。</div>
+                </div>
+            `;
+        }
+    }
+
+    html += '<div style="color:#888;font-size:12px;margin-top:8px;">（AI识别结果仅供参考，最终以安检现场判定为准）</div>';
+    resultDiv.innerHTML = html;
+}
+
+// 展示MobileNet分类结果（单物体）
+function displayClassificationResults(predictions, resultDiv) {
+    let matchedRule = null;
+    let matchedChineseName = null;
+    let matchedPrediction = null;
+
+    for (const pred of predictions) {
+        const chineseName = matchImageNetToChinese(pred.className);
+        if (chineseName) {
+            matchedChineseName = chineseName;
+            matchedPrediction = pred;
+            matchedRule = carryRules[chineseName];
+            break;
+        }
+    }
+
+    // Top 3 预测列表
+    let predListHtml = '<div style="margin-top:10px;border-top:1px solid #eee;padding-top:8px;">';
+    predListHtml += '<div style="font-size:13px;color:#666;margin-bottom:6px;">AI 分类 Top 3 预测：</div>';
+    for (let i = 0; i < Math.min(3, predictions.length); i++) {
+        const p = predictions[i];
+        const pct = (p.probability * 100).toFixed(1);
+        const barWidth = Math.max(5, p.probability * 100);
+        const isMatch = (p === matchedPrediction);
+        predListHtml += `
+            <div style="margin-bottom:4px;font-size:13px;${isMatch ? 'font-weight:600;color:#1a3a5c;' : 'color:#888;'}">
+                <span class="pred-bar" style="width:${barWidth}px;"></span>
+                ${p.className} (${pct}%)
+                ${isMatch ? ' ✅ 已匹配' : ''}
+            </div>
+        `;
+    }
+    predListHtml += '</div>';
+
+    if (matchedRule) {
+        const statusText = matchedRule.status === 'safe' ? '✅ 可随身携带' :
+                           matchedRule.status === 'caution' ? '⚠️ 有条件携带' :
+                           '❌ 禁止随身携带';
+        resultDiv.innerHTML = `
+            <div style="font-size:15px;">
+                <div style="margin-bottom:8px;">
+                    <span style="font-weight:600;">🔍 识别物品：</span>
+                    <span style="font-size:16px;font-weight:700;">${matchedRule.icon} ${matchedChineseName}</span>
+                    <span class="carry-badge ${matchedRule.status}">${statusText}</span>
+                </div>
+                <div style="margin-bottom:6px;">
+                    <span style="font-weight:600;">📌 携带建议：</span><br>
+                    <span style="color:#444;">${matchedRule.advice}</span>
+                </div>
+                <div style="color:#888;font-size:13px;margin-top:6px;">📊 AI置信度：${(matchedPrediction.probability * 100).toFixed(1)}%</div>
+                ${predListHtml}
+                <div style="color:#888;font-size:12px;margin-top:8px;">（AI识别结果仅供参考，最终以安检现场判定为准）</div>
+            </div>
+        `;
+    } else {
+        const topPred = predictions[0];
+        const pct = (topPred.probability * 100).toFixed(1);
+        resultDiv.innerHTML = `
+            <div style="font-size:15px;">
+                <div style="margin-bottom:8px;">
+                    <span style="font-weight:600;">🔍 识别结果：</span>
+                    <span style="font-size:16px;">${topPred.className}</span>
+                    <span style="color:#888;font-size:13px;">（置信度 ${pct}%）</span>
+                </div>
+                <div style="color:#b25a00;margin-bottom:6px;">⚠️ 该物品暂未收录在携带规则库中，无法自动判断携带规则。</div>
+                <div style="color:#555;font-size:14px;">💡 建议在上方"物品携带问答"中手动输入物品名称查询。</div>
+                ${predListHtml}
+                <div style="color:#888;font-size:12px;margin-top:8px;">（AI识别结果仅供参考，最终以安检现场判定为准）</div>
+            </div>
+        `;
+    }
+}
+
+// 展示检测到但均不在规则库的结果
+function displayUnmatchedDetections(detections, resultDiv) {
+    let html = '<div style="font-size:14px;color:#555;margin-bottom:10px;">🎯 检测到物品，但暂未收录携带规则：</div>';
+    for (const det of detections) {
+        const pct = (det.score * 100).toFixed(1);
+        html += `
+            <div class="detect-card" style="border-left-color:#888;">
+                <div class="detect-card-header">
+                    <span class="detect-card-name">${det.class}</span>
+                    <span class="detect-card-confidence">置信度 ${pct}%</span>
+                </div>
+                <div class="detect-card-advice" style="color:#999;">该物品暂未收录携带规则，可在上方"物品携带问答"中手动查询。</div>
+            </div>
+        `;
+    }
+    html += '<div style="color:#888;font-size:12px;margin-top:8px;">（AI识别结果仅供参考，最终以安检现场判定为准）</div>';
+    resultDiv.innerHTML = html;
+}
+
+// 添加到识别历史
+function addToHistory(detections) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const items = detections.map(d => {
+        const cn = cocoToChinese[d.class] || d.class;
+        return cn;
+    });
+    recognitionHistory.unshift({ time: timeStr, items: items });
+
+    // 最多保留10条
+    if (recognitionHistory.length > 10) recognitionHistory.pop();
+
+    renderHistory();
+}
+
+function renderHistory() {
+    const section = document.getElementById('historySection');
+    const list = document.getElementById('historyList');
+    if (recognitionHistory.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    list.innerHTML = recognitionHistory.map((h, i) => {
+        return `<div class="history-item"><span>🕐 ${h.time} — ${h.items.join('、')}</span></div>`;
+    }).join('');
+}
+
+// 降级模拟识别（模型加载失败时使用）
+function mockRecognize(img, resultDiv) {
+    const items = ['充电宝', '防晒喷雾', '折叠伞', '笔记本电脑', '水杯', '钥匙串', '剪刀', '手机'];
+    const randomItem = items[Math.floor(Math.random() * items.length)];
+    const rule = carryRules[randomItem];
+
+    if (rule) {
+        const statusText = rule.status === 'safe' ? '✅ 可随身携带' :
+                           rule.status === 'caution' ? '⚠️ 有条件携带' :
+                           '❌ 禁止随身携带';
+        resultDiv.innerHTML = `
+            <div class="detect-card ${rule.status}">
+                <div class="detect-card-header">
+                    <span class="detect-card-name">${rule.icon} ${randomItem}（模拟）</span>
+                    <span class="carry-badge ${rule.status}">${statusText}</span>
+                </div>
+                <div class="detect-card-advice">${rule.advice}</div>
+                <div style="color:#888;font-size:12px;margin-top:6px;">⚠️ AI模型未加载成功，此为模拟结果。请检查网络后刷新页面重试。</div>
+            </div>
+        `;
+    } else {
+        resultDiv.innerHTML = '<span style="color:#888;">模拟识别未能匹配物品。</span>';
+    }
+}
+
+// ============================================================
+// 登录 / 注册（用户数据保存在 localStorage）
+// ============================================================
+const USERS_KEY = 'yiqifei_users';
+const SESSION_KEY = 'yiqifei_session';
+
+// 获取所有用户（首次使用时自动初始化一个默认管理员账号）
+function getUsers() {
+    let users = [];
+    try {
+        users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+    } catch (e) { users = []; }
+    if (users.length === 0) {
+        users = [{ username: 'admin', password: 'admin123', createdAt: Date.now(), isDefault: true }];
+        saveUsers(users);
+    }
+    return users;
+}
+
+// 保存用户列表
+function saveUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+// 显示提示消息
+function showAuthMsg(text, type) {
+    const el = document.getElementById('authMsg');
+    el.innerHTML = `<div class="modal-msg ${type}">${text}</div>`;
+}
+function clearAuthMsg() {
+    document.getElementById('authMsg').innerHTML = '';
+}
+
+// 打开弹窗
+function openAuthModal() {
+    // 已登录则直接跳转后台
+    if (localStorage.getItem(SESSION_KEY)) {
+        window.location.href = '/admin';
+        return;
+    }
+    document.getElementById('authModal').classList.add('show');
+    clearAuthMsg();
+    setTimeout(() => document.getElementById('loginUser').focus(), 100);
+}
+
+// 关闭弹窗
+function closeAuthModal() {
+    document.getElementById('authModal').classList.remove('show');
+    document.getElementById('loginForm').reset();
+    document.getElementById('registerForm').reset();
+    clearAuthMsg();
+}
+
+// 切换登录/注册标签
+function switchAuthTab(tab) {
+    document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+    document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+    document.getElementById('registerForm').classList.toggle('active', tab === 'register');
+    clearAuthMsg();
+}
+
+// 登录
+function doLogin(e) {
+    e.preventDefault();
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value;
+
+    if (!user || !pass) {
+        showAuthMsg('请输入用户名和密码', 'error');
+        return false;
+    }
+
+    const users = getUsers();
+    const found = users.find(u => u.username === user && u.password === pass);
+
+    if (found) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user, loginAt: Date.now() }));
+        showAuthMsg('✅ 登录成功，正在进入后台...', 'success');
+        setTimeout(() => { window.location.href = '/admin'; }, 600);
+    } else {
+        showAuthMsg('用户名或密码错误', 'error');
+    }
+    return false;
+}
+
+// 注册
+function doRegister(e) {
+    e.preventDefault();
+    const user = document.getElementById('regUser').value.trim();
+    const pass = document.getElementById('regPass').value;
+    const pass2 = document.getElementById('regPass2').value;
+
+    if (!user || !pass || !pass2) {
+        showAuthMsg('请填写所有字段', 'error');
+        return false;
+    }
+    if (user.length < 3 || user.length > 16) {
+        showAuthMsg('用户名长度需为 3-16 位', 'error');
+        return false;
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(user)) {
+        showAuthMsg('用户名只能包含字母和数字', 'error');
+        return false;
+    }
+    if (pass.length < 6) {
+        showAuthMsg('密码至少 6 位', 'error');
+        return false;
+    }
+    if (pass !== pass2) {
+        showAuthMsg('两次密码输入不一致', 'error');
+        return false;
+    }
+
+    const users = getUsers();
+    if (users.find(u => u.username === user)) {
+        showAuthMsg('该用户名已被注册', 'error');
+        return false;
+    }
+
+    users.push({ username: user, password: pass, createdAt: Date.now() });
+    saveUsers(users);
+    showAuthMsg('✅ 注册成功，请登录', 'success');
+    setTimeout(() => switchAuthTab('login'), 800);
+    return false;
+}
+
+</script>
+
+</body>
+</html>

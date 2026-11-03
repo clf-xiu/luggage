@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一起飞 · 后台管理</title>
+    <!-- 页签图标 -->
+     <link rel="icon" href="./favicon(1).png" type="image/png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #222;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+        header {
+            background: #1a3a5c;
+            color: white;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            font-size: 22px;
+            font-weight: 600;
+        }
+        header p {
+            opacity: 0.85;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-user {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .header-user b { color: #ffd666; }
+        .logout-btn {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.28); }
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #1a3a5c;
+        }
+        .tab-bar button {
+            background: #e9ecef;
+            color: #333;
+            border: none;
+            padding: 10px 24px;
+            cursor: pointer;
+            font-size: 15px;
+            border-radius: 0;
+        }
+        .tab-bar button.active {
+            background: #1a3a5c;
+            color: white;
+        }
+        .panel {
+            display: none;
+        }
+        .panel.active {
+            display: block;
+        }
+        .card {
+            background: white;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+            border: 1px solid #d9d9d9;
+        }
+        .card h2 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eee;
+        }
+        .form-item {
+            margin-bottom: 14px;
+        }
+        label {
+            display: inline-block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #bbb;
+            background: white;
+            font-size: 14px;
+        }
+        button {
+            background: #1a3a5c;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0f2a44;
+        }
+        button.danger {
+            background: #b22222;
+        }
+        button.danger:hover {
+            background: #8b1a1a;
+        }
+        .flex-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .flex-row > div {
+            flex: 1;
+            min-width: 140px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: #f0f2f5;
+            font-weight: 600;
+        }
+        .msg {
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 14px;
+        }
+        .msg-success {
+            background: #e8f5e9;
+            color: #1a7a3a;
+            border: 1px solid #a5d6a7;
+        }
+        .msg-error {
+            background: #fdecea;
+            color: #b22222;
+            border: 1px solid #ef9a9a;
+        }
+        .empty-tip {
+            color: #888;
+            font-size: 14px;
+            padding: 12px 0;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>🧳 行李智囊 · 后台管理</h1>
+        <p>维护航司重量标准 · 维护物品知识库</p>
+    </div>
+    <div class="header-right">
+        <span class="header-user">👤 <b id="loginUserName">—</b></span>
+        <button class="logout-btn" onclick="doLogout()">退出登录</button>
+    </div>
+</header>
+
+<!-- 标签切换 -->
+<div class="tab-bar">
+    <button id="tabWeight" class="active" onclick="switchTab('weight')">航司重量标准管理</button>
+    <button id="tabItem" onclick="switchTab('item')">物品知识库管理</button>
+</div>
+
+<!-- ==================== 面板1：航司重量标准管理 ==================== -->
+<div id="panelWeight" class="panel active">
+    <div class="card">
+        <h2>修改航司行李重量规则</h2>
+        <div class="flex-row">
+            <div class="form-item">
+                <label>航空公司</label>
+                <select id="wAirline">
+                    <option value="中国国际航空">中国国际航空</option>
+                    <option value="中国东方航空">中国东方航空</option>
+                    <option value="中国南方航空">中国南方航空</option>
+                    <option value="海南航空" selected>海南航空</option>
+                    <option value="厦门航空">厦门航空</option>
+                    <option value="四川航空">四川航空</option>
+                </select>
+            </div>
+            <div class="form-item">
+                <label>舱位</label>
+                <select id="wCabin">
+                    <option value="经济舱">经济舱</option>
+                    <option value="商务舱">商务舱</option>
+                    <option value="头等舱">头等舱</option>
+                </select>
+            </div>
+            <div class="form-item">
+                <label>重量上限（kg）</label>
+                <input type="number" id="wLimit" placeholder="例如5" step="0.1" min="0">
+            </div>
+        </div>
+        <div class="form-item">
+            <button onclick="saveWeightRule()">保存修改</button>
+        </div>
+        <div id="weightMsg"></div>
+    </div>
+
+    <div class="card">
+        <h2>当前航司重量规则列表</h2>
+        <div id="weightTableWrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>航空公司</th>
+                        <th>舱位</th>
+                        <th>重量上限(kg)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="weightTbody"></tbody>
+            </table>
+        </div>
+        <div id="weightEmpty" class="empty-tip" style="display:none;">暂无航司重量规则数据</div>
+    </div>
+</div>
+
+<!-- ==================== 面板2：物品知识库管理 ==================== -->
+<div id="panelItem" class="panel">
+    <div class="card">
+        <h2>新增物品到知识库</h2>
+        <div class="flex-row">
+            <div class="form-item">
+                <label>物品名称</label>
+                <input id="iName" placeholder="例如：充电宝">
+            </div>
+            <div class="form-item">
+                <label>关键词（多个用逗号分隔）</label>
+                <input id="iKeywords" placeholder="例如：充电宝,移动电源,电池">
+            </div>
+        </div>
+        <div class="flex-row">
+            <div class="form-item">
+                <label>携带类型</label>
+                <select id="iCarryType">
+                    <option value="可携带">可携带</option>
+                    <option value="禁止携带">禁止携带</option>
+                    <option value="限制携带">限制携带</option>
+                </select>
+            </div>
+            <div class="form-item">
+                <label>限制说明</label>
+                <input id="iLimitDesc" placeholder="例如：≤100Wh可随身，严禁托运">
+            </div>
+        </div>
+        <div class="form-item">
+            <label>详细解释</label>
+            <input id="iDetail" placeholder="例如：额定能量不超过100Wh可直接携带">
+        </div>
+        <div class="form-item">
+            <label>备注</label>
+            <input id="iNote" placeholder="例如：需单独取出过检">
+        </div>
+        <div class="form-item">
+            <button id="itemSubmitBtn" onclick="submitItem()">新增物品</button>
+            <button id="itemCancelBtn" onclick="cancelEdit()" style="display:none;margin-left:8px;">取消</button>
+            <span id="editTip" style="margin-left:12px;color:#1a3a5c;font-size:13px;"></span>
+        </div>
+        <div id="itemMsg"></div>
+    </div>
+
+    <div class="card">
+        <h2>物品知识库列表</h2>
+        <div id="itemTableWrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>物品名称</th>
+                        <th>关键词</th>
+                        <th>携带类型</th>
+                        <th>限制说明</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="itemTbody"></tbody>
+            </table>
+        </div>
+        <div id="itemEmpty" class="empty-tip" style="display:none;">暂无物品知识库数据</div>
+    </div>
+</div>
+
+<script>
+    // 后端接口地址：前端由 Flask 同源托管，使用相对路径即可
+    const API_BASE = '';
+
+    const SESSION_KEY = 'yiqifei_session';
+
+    // 登录校验：未登录则跳回旅客端
+    function checkAuth() {
+        const session = localStorage.getItem(SESSION_KEY);
+        if (!session) {
+            alert('请先登录后再访问后台管理');
+            window.location.href = '/';
+            return false;
+        }
+        try {
+            const data = JSON.parse(session);
+            document.getElementById('loginUserName').textContent = data.username || '—';
+            return true;
+        } catch (e) {
+            localStorage.removeItem(SESSION_KEY);
+            window.location.href = '/';
+            return false;
+        }
+    }
+
+    // 退出登录
+    function doLogout() {
+        if (confirm('确定要退出登录吗？')) {
+            localStorage.removeItem(SESSION_KEY);
+            window.location.href = '/';
+        }
+    }
+
+    // 全局数据（从后端加载）
+    let weightRules = [];
+    let itemList = [];
+
+    // ============================================================
+    // 标签切换
+    // ============================================================
+    function switchTab(type) {
+        document.getElementById('panelWeight').classList.remove('active');
+        document.getElementById('panelItem').classList.remove('active');
+        document.getElementById('tabWeight').classList.remove('active');
+        document.getElementById('tabItem').classList.remove('active');
+
+        if (type === 'weight') {
+            document.getElementById('panelWeight').classList.add('active');
+            document.getElementById('tabWeight').classList.add('active');
+        } else {
+            document.getElementById('panelItem').classList.add('active');
+            document.getElementById('tabItem').classList.add('active');
+        }
+    }
+
+    // ============================================================
+    // 功能1：航司重量标准管理
+    // ============================================================
+
+    // 加载航司重量列表
+    async function loadWeightList() {
+        try {
+            const res = await fetch(`${API_BASE}/api/weight/list`);
+            const data = await res.json();
+            if (data.success) {
+                weightRules = data.data;
+                renderWeightTable();
+            } else {
+                document.getElementById('weightMsg').innerHTML =
+                    `<div class="msg msg-error">⚠️ 加载失败：${data.msg}</div>`;
+            }
+        } catch (e) {
+            document.getElementById('weightMsg').innerHTML =
+                `<div class="msg msg-error">⚠️ 无法连接后端，请确认 app.py 已启动</div>`;
+        }
+    }
+
+    // 保存（新增或修改）航司重量规则
+    async function saveWeightRule() {
+        const airline = document.getElementById('wAirline').value;
+        const cabin = document.getElementById('wCabin').value;
+        const limit = parseFloat(document.getElementById('wLimit').value);
+        const msgDom = document.getElementById('weightMsg');
+
+        if (isNaN(limit) || limit <= 0) {
+            msgDom.innerHTML = '<div class="msg msg-error">⚠️ 请输入有效的重量上限（大于0）</div>';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/api/weight/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ airline, cabin, limit })
+            });
+            const data = await res.json();
+            if (data.success) {
+                msgDom.innerHTML = `<div class="msg msg-success">✅ ${data.msg}：${airline} - ${cabin} ${limit} kg</div>`;
+                document.getElementById('wLimit').value = '';
+                await loadWeightList();
+            } else {
+                msgDom.innerHTML = `<div class="msg msg-error">⚠️ ${data.msg}</div>`;
+            }
+        } catch (e) {
+            msgDom.innerHTML = '<div class="msg msg-error">⚠️ 保存失败，请检查后端</div>';
+        }
+    }
+
+    // 删除航司重量规则
+    async function deleteWeightRule(airline, cabin) {
+        if (!confirm(`确定删除 ${airline} - ${cabin} 的重量规则吗？`)) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/weight/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ airline, cabin })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('weightMsg').innerHTML =
+                    `<div class="msg msg-success">✅ 已删除：${airline} - ${cabin}</div>`;
+                await loadWeightList();
+            } else {
+                document.getElementById('weightMsg').innerHTML =
+                    `<div class="msg msg-error">⚠️ ${data.msg}</div>`;
+            }
+        } catch (e) {
+            document.getElementById('weightMsg').innerHTML =
+                '<div class="msg msg-error">⚠️ 删除失败，请检查后端</div>';
+        }
+    }
+
+    // 渲染航司重量表格
+    function renderWeightTable() {
+        const tbody = document.getElementById('weightTbody');
+        const empty = document.getElementById('weightEmpty');
+        const wrap = document.getElementById('weightTableWrap');
+
+        if (weightRules.length === 0) {
+            tbody.innerHTML = '';
+            wrap.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        wrap.style.display = 'block';
+        empty.style.display = 'none';
+
+        tbody.innerHTML = weightRules.map(r => `
+            <tr>
+                <td>${r.airline_name}</td>
+                <td>${r.cabin}</td>
+                <td>${r.weight_limit} kg</td>
+                <td>
+                    <button class="danger" onclick="deleteWeightRule('${r.airline_name}', '${r.cabin}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // ============================================================
+    // 功能2：物品知识库管理
+    // ============================================================
+    let editingItemName = null;  // 当前正在编辑的物品名（null=新增模式）
+
+    // 加载物品列表
+    async function loadItemList() {
+        try {
+            const res = await fetch(`${API_BASE}/api/item/list`);
+            const data = await res.json();
+            if (data.success) {
+                itemList = data.data;
+                renderItemTable();
+            } else {
+                document.getElementById('itemMsg').innerHTML =
+                    `<div class="msg msg-error">⚠️ 加载失败：${data.msg}</div>`;
+            }
+        } catch (e) {
+            document.getElementById('itemMsg').innerHTML =
+                `<div class="msg msg-error">⚠️ 无法连接后端，请确认 app.py 已启动</div>`;
+        }
+    }
+
+    // 新增 / 修改物品（二合一）
+    async function submitItem() {
+        const name = document.getElementById('iName').value.trim();
+        const keywords = document.getElementById('iKeywords').value.trim();
+        const carryType = document.getElementById('iCarryType').value;
+        const limitDesc = document.getElementById('iLimitDesc').value.trim();
+        const detail = document.getElementById('iDetail').value.trim();
+        const note = document.getElementById('iNote').value.trim();
+        const msgDom = document.getElementById('itemMsg');
+
+        if (!name) {
+            msgDom.innerHTML = '<div class="msg msg-error">⚠️ 物品名称不能为空</div>';
+            return;
+        }
+
+        const isEdit = editingItemName !== null;
+        const payload = isEdit
+            ? { oldName: editingItemName, name, keywords, carryType, limitDesc, detail, note }
+            : { name, keywords, carryType, limitDesc, detail, note };
+        const url = isEdit ? '/api/item/update' : '/api/item/add';
+
+        try {
+            const res = await fetch(`${API_BASE}${url}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                msgDom.innerHTML = `<div class="msg msg-success">✅ ${isEdit ? '已修改' : '已新增'}物品：${name}</div>`;
+                cancelEdit();  // 恢复新增模式并清空表单
+                await loadItemList();
+            } else {
+                msgDom.innerHTML = `<div class="msg msg-error">⚠️ ${data.msg}</div>`;
+            }
+        } catch (e) {
+            msgDom.innerHTML = `<div class="msg msg-error">⚠️ ${isEdit ? '修改' : '新增'}失败，请检查后端</div>`;
+        }
+    }
+
+    // 点击"修改"：回填表单，进入编辑模式
+    function editItem(name) {
+        const item = itemList.find(i => i.item_name === name);
+        if (!item) return;
+        editingItemName = name;
+        document.getElementById('iName').value = item.item_name || '';
+        document.getElementById('iKeywords').value = item.keywords || '';
+        document.getElementById('iCarryType').value = item.carry_type || '可携带';
+        document.getElementById('iLimitDesc').value = item.limit_desc || '';
+        document.getElementById('iDetail').value = item.detail_explain || '';
+        document.getElementById('iNote').value = item.note || '';
+        document.getElementById('itemSubmitBtn').textContent = '保存修改';
+        document.getElementById('itemCancelBtn').style.display = 'inline-block';
+        document.getElementById('editTip').textContent = `正在编辑：${name}`;
+        // 滚动到表单顶部
+        document.getElementById('panelItem').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 取消编辑，恢复新增模式
+    function cancelEdit() {
+        editingItemName = null;
+        document.getElementById('iName').value = '';
+        document.getElementById('iKeywords').value = '';
+        document.getElementById('iLimitDesc').value = '';
+        document.getElementById('iDetail').value = '';
+        document.getElementById('iNote').value = '';
+        document.getElementById('itemSubmitBtn').textContent = '新增物品';
+        document.getElementById('itemCancelBtn').style.display = 'none';
+        document.getElementById('editTip').textContent = '';
+    }
+
+    // 删除物品
+    async function deleteItem(name) {
+        if (!confirm(`确定从知识库中删除「${name}」吗？`)) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/item/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('itemMsg').innerHTML =
+                    `<div class="msg msg-success">✅ 已删除物品：${name}</div>`;
+                await loadItemList();
+            } else {
+                document.getElementById('itemMsg').innerHTML =
+                    `<div class="msg msg-error">⚠️ ${data.msg}</div>`;
+            }
+        } catch (e) {
+            document.getElementById('itemMsg').innerHTML =
+                '<div class="msg msg-error">⚠️ 删除失败，请检查后端</div>';
+        }
+    }
+
+    // 渲染物品表格
+    function renderItemTable() {
+        const tbody = document.getElementById('itemTbody');
+        const empty = document.getElementById('itemEmpty');
+        const wrap = document.getElementById('itemTableWrap');
+
+        if (itemList.length === 0) {
+            tbody.innerHTML = '';
+            wrap.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        wrap.style.display = 'block';
+        empty.style.display = 'none';
+
+        tbody.innerHTML = itemList.map(item => `
+            <tr>
+                <td>${item.item_name}</td>
+                <td>${item.keywords || ''}</td>
+                <td>${item.carry_type || ''}</td>
+                <td>${item.limit_desc || ''}</td>
+                <td>
+                    <button onclick="editItem('${item.item_name}')">修改</button>
+                    <button class="danger" onclick="deleteItem('${item.item_name}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+    window.onload = function() {
+        if (!checkAuth()) return;  // 未登录则跳走
+        loadWeightList();
+        loadItemList();
+    };
+</script>
+
+</body>
+</html>
