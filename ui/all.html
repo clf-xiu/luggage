@@ -1943,7 +1943,7 @@ function clearAuthMsg() {
 function openAuthModal() {
     // 已登录则直接跳转后台
     if (localStorage.getItem(SESSION_KEY)) {
-        window.location.href = '/admin';
+        window.open('/admin', '_blank');
         return;
     }
     document.getElementById('authModal').classList.add('show');
@@ -1985,7 +1985,7 @@ function doLogin(e) {
     if (found) {
         localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user, loginAt: Date.now() }));
         showAuthMsg('✅ 登录成功，正在进入后台...', 'success');
-        setTimeout(() => { window.location.href = '/admin'; }, 600);
+        setTimeout(() => { window.open('/admin', '_blank'); }, 600);
     } else {
         showAuthMsg('用户名或密码错误', 'error');
     }
